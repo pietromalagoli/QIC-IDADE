@@ -1,3 +1,2 @@
-for i = 1:3
-    disp(i);
-end
+load("data.mat");
+disp(modes(1), '%.4f');
