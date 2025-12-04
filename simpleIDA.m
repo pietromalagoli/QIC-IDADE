@@ -1,10 +1,5 @@
-% Implementation of the IDADE algorithm from the paper
-N = 3; % number of ions in the trap
-w_tar = ones(1,N); % Target eigenfrequencies
-B_init = ones(N); % Initial guess for the eigenvectors
-A_conv = ones(N)./2; % Matrix for the trap w/o tweezers
-
-function A_bar = IDA(w_tar,B_init,A_conv,precision,niter)
+% Implementation of the IDA algorithm from the paper
+function A_bar = simpleIDA(w_tar,B_init,A_conv,precision,niter)
     % I follow the protocol at page 4 of the paper
     % Step 1 & 2
     N = numel(w_tar);
@@ -33,5 +28,3 @@ function A_bar = IDA(w_tar,B_init,A_conv,precision,niter)
     end
     disp('Convergence not reached :(')
 end
-
-A_trial = IDA(w_tar,B_init,A_conv,0.0001,10);
