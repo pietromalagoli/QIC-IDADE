@@ -6,11 +6,15 @@ function [A_conv,B_init,w_init] = AB_conv(N,init,params)
     % i.e. q,M, respectively named q_init,M_init
     % - params: struct with the parameters for the system, such as eps0,Vdc, ...
     % Returns:
-    % - A_conv: A matrix w/o the tweezers (for the off-diagonal constraints)
+    % - A_conv: A matrix w/o the tweezers (for the off-diagonal
+    % constraints). Size = [N N 3] (one NxN matrix for each direction
+    % (x,y,z)).
     % - B_init: Initial guess for the B matrix, as the B matrix of the
-    % system w/o tweezers.
+    % system w/o tweezers. Size = [N N 3] (one NxN matrix for each direction
+    % (x,y,z)).
     % - w_init: Eigenfrequencies w/o tweezers, useful if one wants to focus
-    % IDADE's work on a specific direction (coordinate).
+    % IDADE's work on a specific direction (coordinate). Size = [N 3] (one
+    % column for each direction (x,y,z)).
 
     % Extract initialization values and parameters
     q_init = init.q_init;
@@ -53,8 +57,8 @@ function [A_conv,B_init,w_init] = AB_conv(N,init,params)
     phiTotal = phiC + phiT; % Total potential (without tweezers)
     
     %% Stability Analysis
-    coords = [r(1,:) r(2,:) r(3,:)];
-    gradPhi = gradient(phiTotal,coords);
+    coords = [r(1,:);r(2,:); r(3,:)];
+    gradPhi = gradient(phiTotal,coords(:));
     
     % Substitute the variables' initial values in the gradient expression
     init_list = [q,M];
@@ -63,22 +67,26 @@ function [A_conv,B_init,w_init] = AB_conv(N,init,params)
     
     % Find the critical points
     crits = vpasolve(gradPhi == 0.,'Random',true); 
-    crits_mat = cell2mat(struct2cell(crits));
+    crits_mat = cell2mat(struct2cell(crits))';
     crits_mat(abs(crits_mat) < 1e-25) = 0.; % I set a tolerance for the values of crits, setting to zero too low values (This allows to regain some stability)
     
     % Now I compute the Hessian martix
-    H = hessian(phiTotal,coords);
-    H = subs(H,init_list, param_inits); % Substitute the parameters' values in the Hessian expression
-    H_eq = subs(H,symvar(H),crits_mat'); % compute the value of the Hessian matrix in the critical point previously found
-    H_eq(isnan(H_eq)) = 0.; % Substitute NaN values with zeros in the Hessian matrix
+    dim = size(coords,1);
+    Hs = arrayfun(@(alpha) hessian(phiTotal,coords(alpha,:)), 1:dim,'UniformOutput',false); % compute the Hessian for each direction (x,y,z)
+    Hs = cat(3,Hs{:});
+    Hs = subs(Hs,init_list,param_inits); % substitute the parameters' values in the Hessian matrix
+    Hs_eq = subs(Hs,symvar(Hs),crits_mat); % compute the value of the Hessian matrix in the critical point previously found
+    Hs_eq(isnan(Hs_eq)) = 0.; % Substitute NaN values with zeros in the Hessian matrix
 
     % Find the normal modes and frequencies
-    M = repelem(cell2mat(sym2cell(M)), 3);  % each mass appears 3 times because there are 3 variables for each ion (x,y,z)
-    Minv2 = diag(1 ./ sqrt(M));
-    A_conv = Minv2 * H_eq * Minv2; % A matrix as the mass-weighted Hessian (matrix)
-    A_conv = subs(A_conv,M,repelem(M_init,3)); % subtitutes the values of the masses in the expression
+    Minv2 = diag(1 ./ sqrt(M_init));
+    A_conv = arrayfun(@(alpha) Minv2 * Hs_eq(:,:,alpha) * Minv2, 1:dim, 'UniformOutput', false);
+    A_conv = cat(3,A_conv{:});
     
     % Find B and w by diagonalizing A
-    [B_init,W] = eig(A_conv); 
-    w_init = diag(W); 
+    % ora poi A va diagonalizzata e trovato eigenvalues and eigenvectors
+    [B_init,w_init] = arrayfun(@(alpha) eig(A_conv(:,:,alpha)), 1:dim, 'UniformOutput', false); 
+    B_init = cat(3,B_init{:});
+    w_init = arrayfun(@(alpha) diag(w_init{alpha}), 1:dim, 'UniformOutput', false);
+    w_init = cat(2,w_init{:});
 end

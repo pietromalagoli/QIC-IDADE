@@ -1,0 +1,41 @@
+%%
+addpath(genpath('../QIC-IDADE'));
+
+% Set parameters 
+N = 5; % number of ions in the trap
+init.q_init = [1.6e-19,1.6e-19,1.6e-19,1.6e-19,1.6e-19]; % 1 unit of electric charge in Coulomb
+init.M_init = [2.87e-25,2.28e-25,2.28e-25,2.28e-25,2.28e-25]; % Masses for the chain Yb-Ba-Ba-Ba-Ba (where Yb=171Yb+, Ba=133Ba+)
+params.xi = [0.06, 0.06, 0.06]; % Example values for trap geometric factors
+params.psi = [0.06, 0.06]; % Example values for trap geometric factors
+params.Vdc = 10; % in volts (reference: Table 1 at http://dx.doi.org/10.1088/0143-0807/34/3/787) 
+params.Vrf = 550; % in volts (reference: Table 1 at http://dx.doi.org/10.1088/0143-0807/34/3/787)
+params.OmegaRF = 1.8e7; % Frequency in Hz (reference: Table 1 at http://dx.doi.org/10.1088/0143-0807/34/3/787)
+params.eps0 = 8.85e-12; % permittivity of free space ([e0] = m-3 kg-1 s4 A2)
+
+[A_conv,B_init,w_conv] = AB_conv(N,init,params); 
+%% 
+
+Ba_init.q_init = [1e-19,1e-19,1e-19,1e-19,1e-19]; 
+Ba_init.M_init = [2.28e-25,2.28e-25,2.28e-25,2.28e-25,2.28e-25];
+[~,~,w_tar] = AB_conv(N,Ba_init,params); % I set the w_tar as the one of the 5-Ba chain, as it is in Figure 4
+
+%% I do IDA on the z direction
+w_tar_z = w_tar(:,3);
+A_conv_z = A_conv(:,:,3);
+B_init_z = B_init(:,:,3);
+B_ens = cat(3,B_init_z,ones(size(B_init_z)),B_init_z.*0.8,B_init_z.*0.3); % size(B_ens,3) >= 3
+%[out] = full_IDA(w_tar_z,B_ens,A_conv_z,0.1,100,0);
+%% 
+maxiter = 3;
+DEparams = [0.9,0.5,0.5]; % taken from figure 2
+for iter = 1:maxiter
+    if rem(iter,10) == 0
+        disp(['Iteration #' num2str(iter)]);
+    end
+    [out] = full_IDA(w_tar_z,B_ens,A_conv_z,0.1,100,0);
+    if out.score == -1 % if the method did not converged, out.score is returned as -1
+        A_bars = DE(out.A_bars,w_tar_z,A_conv_z,DEparams,0);
+        [B_ens,~] = arrayfun(@(p) eig(A_bars(:,:,p)), 1:size(A_bars,3), 'UniformOutput', false);
+        B_ens = cat(3, B_ens{:}); % Concatenate the cell array into a 3D matrix
+    end
+end
