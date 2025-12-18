@@ -1,9 +1,27 @@
 function [out] = full_IDA(w_tar,B_ens,A_conv,precision,niter,verb)
-    % w_tar: target eigenfrequencies ALONG AN AXIS, not all 3.
-    % B_ens: ensemble of intial guesses for the B matrix (NxNxP matrix)
+    % full_IDA computes the optimal A matrix for a given set of target eigenfrequencies.
+    %
+    % Inputs:
+    %   w_tar     - A vector of target eigenfrequencies along a specified axis (1 x N).
+    %   B_ens     - A 3D matrix containing an ensemble of initial guesses for the B matrix (N x N x P).
+    %   A_conv    - A matrix used to construct a modified version of the A matrix (N x N).
+    %   precision  - A scalar value indicating the convergence threshold for the optimization.
+    %   niter     - An integer specifying the maximum number of iterations for the optimization process.
+    %   verb      - A boolean flag to control the verbosity of the output during iterations.
+    %
+    % Outputs:
+    %   out       - A structure containing the following fields:
+    %       A_opt   - The optimal A matrix found during the optimization (N x N).
+    %       score    - The score associated with the optimal A matrix.
+    %       A_bars   - The set of A matrices computed during the iterations (if not converged).
+    %
+    % The function iteratively refines the B matrix and computes the corresponding A matrices
+    % until convergence is reached or the maximum number of iterations is exceeded.
+    % Convergence is determined based on the minimum score calculated from the difference
+    % between the computed eigenfrequencies and the target eigenfrequencies.
+
     converged = false; % Flag for convergence
     N = numel(w_tar); % because w_tar has size = [1 N] (since we study only along one direction)
-    %W2 = diag(w_tar.^2); % diagonal matrix of w_tar^2
     P = size(B_ens,3);
     w_tars = repelem(w_tar',1,1,P); % size = 1 N P (I added the dummy variable (first dimension) to be able to vetorize the computation of A_bars
     A_bars = zeros(N,N,P);

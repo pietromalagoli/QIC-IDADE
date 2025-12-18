@@ -1,20 +1,31 @@
 function [A_conv,B_init,w_init] = AB_conv(N,init,params)
-    % "Function for computing the A_conv and B_conv matrices for the given
-    % parameters."
-    % Arguments:
-    % - init: struct with initialization values for charge and mass,
-    % i.e. q,M, respectively named q_init,M_init
-    % - params: struct with the parameters for the system, such as eps0,Vdc, ...
-    % Returns:
-    % - A_conv: A matrix w/o the tweezers (for the off-diagonal
-    % constraints). Size = [N N 3] (one NxN matrix for each direction
-    % (x,y,z)).
-    % - B_init: Initial guess for the B matrix, as the B matrix of the
-    % system w/o tweezers. Size = [N N 3] (one NxN matrix for each direction
-    % (x,y,z)).
-    % - w_init: Eigenfrequencies w/o tweezers, useful if one wants to focus
-    % IDADE's work on a specific direction (coordinate). Size = [N 3] (one
-    % column for each direction (x,y,z)).
+    % This function computes the A_conv and B_init matrices, as well as the 
+    % initial guess for the eigenfrequencies (w_init) of a system of ions 
+    % influenced by electric fields, without the presence of optical tweezers.
+    %
+    % Inputs:
+    %   N      - Integer representing the number of ions in the system.
+    %   init   - Struct containing initialization values:
+    %             - q_init: Initial charge of the ions (vector of size N).
+    %             - M_init: Initial mass of the ions (vector of size N).
+    %   params - Struct containing system parameters:
+    %             - eps0: Permittivity of free space.
+    %             - Vdc: Direct current voltage.
+    %             - Vrf: Radio frequency voltage.
+    %             - OmegaRF: Angular frequency of the radio frequency.
+    %             - xi: Vector of parameters related to the trap.
+    %             - psi: Vector of parameters related to the trap.
+    %
+    % Outputs:
+    %   A_conv - 3D matrix of size [N N 3] representing the A matrix 
+    %             without the tweezers, with one NxN matrix for each 
+    %             direction (x, y, z).
+    %   B_init  - 3D matrix of size [N N 3] representing the initial guess 
+    %             for the B matrix of the system without tweezers, with one 
+    %             NxN matrix for each direction (x, y, z).
+    %   w_init  - 2D matrix of size [N 3] containing the eigenfrequencies 
+    %             without tweezers, with one column for each direction 
+    %             (x, y, z).
 
     % Extract initialization values and parameters
     q_init = init.q_init;
@@ -32,7 +43,7 @@ function [A_conv,B_init,w_init] = AB_conv(N,init,params)
     
     % Define the potentials
     phiC = 0; % Coulomb potential
-    for i = 1:N-1 % devo fare 1:N-1 perché per i=N dopo j=i+1:N è vuoto e quindi dà errore. e infatti matematicamente il termine della somma per i = N si ski
+    for i = 1:N-1 
         for j = i+1:N
             phiC = phiC + q(i) * q(j) / (4*pi*eps0*norm(r(:,i)-r(:,j)));
         end
@@ -84,7 +95,6 @@ function [A_conv,B_init,w_init] = AB_conv(N,init,params)
     A_conv = cat(3,A_conv{:});
     
     % Find B and w by diagonalizing A
-    % ora poi A va diagonalizzata e trovato eigenvalues and eigenvectors
     [B_init,w_init] = arrayfun(@(alpha) eig(A_conv(:,:,alpha)), 1:dim, 'UniformOutput', false); 
     B_init = cat(3,B_init{:});
     w_init = arrayfun(@(alpha) diag(w_init{alpha}), 1:dim, 'UniformOutput', false);
